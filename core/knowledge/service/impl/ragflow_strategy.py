@@ -245,14 +245,15 @@ class RagflowRAGStrategy(RAGStrategy):
         if not default_group:
             logger.error("RAGFLOW_DEFAULT_GROUP not found in configuration")
             raise CustomException(
-                CodeEnum.ChunkSaveFailed, "RAGFLOW_DEFAULT_GROUP配置缺失"
+                CodeEnum.ChunkSaveFailed, "RAGFLOW_DEFAULT_GROUP configuration missing"
             )
 
         dataset_id = await RagflowUtils.ensure_dataset(default_group)
         if not dataset_id:
             logger.error(f"Unable to find or create dataset: {default_group}")
             raise CustomException(
-                CodeEnum.ChunkSaveFailed, f"无法找到或创建数据集: {default_group}"
+                CodeEnum.ChunkSaveFailed,
+                f"Unable to find or create dataset: {default_group}",
             )
 
         return dataset_id
@@ -274,17 +275,22 @@ class RagflowRAGStrategy(RAGStrategy):
                         return  # Document exists, validation passed
 
                 logger.error(f"Document {doc_id} does not exist in RAGFlow")
-                raise CustomException(CodeEnum.ChunkSaveFailed, f"文档 {doc_id} 不存在")
+                raise CustomException(
+                    CodeEnum.ChunkSaveFailed, f"Document {doc_id} does not exist"
+                )
             else:
                 logger.error(f"Unable to get document list: {docs_response}")
-                raise CustomException(CodeEnum.ChunkSaveFailed, "无法获取文档列表")
+                raise CustomException(
+                    CodeEnum.ChunkSaveFailed, "Unable to get document list"
+                )
 
         except CustomException:
             raise  # Re-raise custom exceptions
         except Exception as e:
             logger.error(f"Error checking document existence: {e}")
             raise CustomException(
-                CodeEnum.ChunkSaveFailed, f"检查文档存在性时发生错误: {str(e)}"
+                CodeEnum.ChunkSaveFailed,
+                f"Error occurred while checking document existence: {str(e)}",
             )
 
     async def _get_existing_chunks(
@@ -340,7 +346,7 @@ class RagflowRAGStrategy(RAGStrategy):
             if not content:
                 logger.warning(f"Chunk {i} content is empty, skipping")
                 raise CustomException(
-                    CodeEnum.ParameterInvalid, f"Chunk {i} content不能为空"
+                    CodeEnum.ParameterInvalid, f"Chunk {i} content cannot be empty"
                 )
 
             data_index = str(chunk.get("dataIndex", i))
@@ -396,7 +402,8 @@ class RagflowRAGStrategy(RAGStrategy):
         except Exception as e:
             logger.error(f"Chunk {i} save exception: {e}")
             raise CustomException(
-                CodeEnum.ChunkSaveFailed, f"保存第{i}个chunk时发生异常: {str(e)}"
+                CodeEnum.ChunkSaveFailed,
+                f"Exception occurred while saving chunk {i}: {str(e)}",
             )
 
     def _handle_chunk_save_response(
@@ -438,7 +445,7 @@ class RagflowRAGStrategy(RAGStrategy):
             error_msg = add_response.get("message", "Save failed")
             logger.error(f"Chunk {i} save failed: {error_msg}")
             raise CustomException(
-                CodeEnum.ChunkSaveFailed, f"保存第{i}个chunk失败: {error_msg}"
+                CodeEnum.ChunkSaveFailed, f"Failed to save chunk {i}: {error_msg}"
             )
 
     async def _process_chunks_batch(
@@ -485,14 +492,14 @@ class RagflowRAGStrategy(RAGStrategy):
                 [f"Chunk {fc['index']}: {fc['error']}" for fc in failed_chunks]
             )
             raise CustomException(
-                CodeEnum.ChunkSaveFailed, f"所有chunks保存失败: {error_details}"
+                CodeEnum.ChunkSaveFailed, f"All chunks save failed: {error_details}"
             )
         elif failed_chunks:
             # Some chunks failed
             error_details = "; ".join(
                 [f"Chunk {fc['index']}: {fc['error']}" for fc in failed_chunks]
             )
-            logger.warning(f"部分chunks保存失败: {error_details}")
+            logger.warning(f"Some chunks save failed: {error_details}")
             # Continue and return successful chunks
 
         logger.info(
@@ -537,7 +544,9 @@ class RagflowRAGStrategy(RAGStrategy):
         """
         if not check_not_empty(chunks):
             logger.error("Chunks list is empty or invalid")
-            raise CustomException(CodeEnum.MissingParameter, "chunks参数不能为空")
+            raise CustomException(
+                CodeEnum.MissingParameter, "chunks parameter cannot be empty"
+            )
 
         logger.info(
             f"Starting chunk save request: docId={docId}, group={group}, chunks_count={len(chunks)}"
@@ -580,14 +589,16 @@ class RagflowRAGStrategy(RAGStrategy):
         if not default_group:
             logger.error("RAGFLOW_DEFAULT_GROUP not found in configuration")
             raise CustomException(
-                CodeEnum.ChunkUpdateFailed, "RAGFLOW_DEFAULT_GROUP配置缺失"
+                CodeEnum.ChunkUpdateFailed,
+                "RAGFLOW_DEFAULT_GROUP configuration missing",
             )
 
         dataset_id = await RagflowUtils.ensure_dataset(default_group)
         if not dataset_id:
             logger.error(f"Unable to find or create dataset: {default_group}")
             raise CustomException(
-                CodeEnum.ChunkUpdateFailed, f"无法找到或创建数据集: {default_group}"
+                CodeEnum.ChunkUpdateFailed,
+                f"Unable to find or create dataset: {default_group}",
             )
 
         return dataset_id
@@ -609,7 +620,7 @@ class RagflowRAGStrategy(RAGStrategy):
         )
 
         if not chunk_id:
-            # 收集错误信息，键统一使用"chunkId"
+            # Collect error information, use "chunkId" uniformly as key
             if "chunkId" not in failed_chunks:
                 failed_chunks["chunkId"] = "missing chunk identifier"
             else:
@@ -708,7 +719,9 @@ class RagflowRAGStrategy(RAGStrategy):
         """
         if not check_not_empty(chunks):
             logger.warning("Chunks list is empty, no update needed")
-            raise CustomException(CodeEnum.MissingParameter, "chunks参数不能为空")
+            raise CustomException(
+                CodeEnum.MissingParameter, "chunks parameter cannot be empty"
+            )
 
         logger.info(
             f"Processing chunk update request: docId={docId}, group={group}, chunks_count={len(chunks)}"
@@ -766,7 +779,9 @@ class RagflowRAGStrategy(RAGStrategy):
         # Parameter validation
         if not check_not_empty(chunkIds):
             logger.error("chunkIds parameter cannot be empty")
-            raise CustomException(CodeEnum.MissingParameter, "chunkIds参数不能为空")
+            raise CustomException(
+                CodeEnum.MissingParameter, "chunkIds parameter cannot be empty"
+            )
 
         logger.info(
             f"Processing chunk deletion request: docId={docId}, chunks_count={len(chunkIds)}"
@@ -780,14 +795,16 @@ class RagflowRAGStrategy(RAGStrategy):
                     "RAGFLOW_DEFAULT_GROUP not found in config, chunks_delete operation failed"
                 )
                 raise CustomException(
-                    CodeEnum.ChunkDeleteFailed, "RAGFLOW_DEFAULT_GROUP配置缺失"
+                    CodeEnum.ChunkDeleteFailed,
+                    "RAGFLOW_DEFAULT_GROUP configuration missing",
                 )
 
             dataset_id = await RagflowUtils.ensure_dataset(default_group)
             if not dataset_id:
                 logger.error(f"Unable to find or create dataset: {default_group}")
                 raise CustomException(
-                    CodeEnum.ChunkDeleteFailed, f"无法找到或创建数据集: {default_group}"
+                    CodeEnum.ChunkDeleteFailed,
+                    f"Unable to find or create dataset: {default_group}",
                 )
 
             logger.info(f"Using dataset: {default_group} (ID: {dataset_id})")
@@ -808,14 +825,16 @@ class RagflowRAGStrategy(RAGStrategy):
                 error_msg = delete_response.get("message", "Deletion failed")
                 logger.error(f"RAGFlow deletion failed: {error_msg}")
                 raise CustomException(
-                    CodeEnum.ChunkDeleteFailed, f"删除失败: {error_msg}"
+                    CodeEnum.ChunkDeleteFailed, f"Deletion failed: {error_msg}"
                 )
 
         except CustomException:
             raise  # Re-raise custom exceptions
         except Exception as e:
             logger.error(f"Chunk deletion operation failed: {e}")
-            raise CustomException(CodeEnum.ChunkDeleteFailed, f"删除操作失败: {str(e)}")
+            raise CustomException(
+                CodeEnum.ChunkDeleteFailed, f"Deletion operation failed: {str(e)}"
+            )
 
     async def query_doc(self, docId: str, **kwargs: Any) -> List[Dict[str, Any]]:
         """

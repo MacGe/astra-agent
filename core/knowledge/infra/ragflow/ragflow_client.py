@@ -43,7 +43,7 @@ def get_rag_object() -> Any:
         if RAGFlow is None:
             raise ImportError("ragflow_sdk is not available")
 
-        # 直接使用 os.getenv 获取环境变量，和 aiui.py 保持一致
+        # Use os.getenv directly to get environment variables, consistent with aiui.py
         base_url = os.getenv("RAGFLOW_BASE_URL", "")
         api_key = os.getenv("RAGFLOW_API_TOKEN", "")
 
@@ -367,7 +367,7 @@ def reload_config() -> None:
     """
     global _config_cache, _rag_object
     _config_cache = None
-    _rag_object = None  # 重置 RAGFlow 客户端实例
+    _rag_object = None  # Reset RAGFlow client instance
     logger.info("RAGFlow configuration cache cleared, will reload on next request")
 
 

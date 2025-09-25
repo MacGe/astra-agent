@@ -236,7 +236,8 @@ class AIUIRAGStrategy(RAGStrategy):
                                     )
                                 elif value.get("format") == "image":
                                     content_text = content_text.replace(
-                                        "<" + key + ">",  "![Image name](" + value.get("link", "") + ")"
+                                        "<" + key + ">",
+                                        "![Image name](" + value.get("link", "") + ")",
                                     )
 
                     result.append(

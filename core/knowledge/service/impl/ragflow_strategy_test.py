@@ -230,8 +230,7 @@ class TestRagflowRAGStrategy:
         print("🧪 Testing RAGFlow strategy split method")
 
         # Use the same test URL as in ragflow_strategy.py
-        test_url = "https://oss-beijing-m8.openstorage.cn/SparkBotDev/knowledge_doc/cc124/2023机电一体化技术_人才培养方案.pdf"
-
+        test_url = "https://www.adobe.com/support/products/enterprise/knowledgecenter/media/c4611_sample_explain.pdf"
         try:
             print(f"📄 Test file URL: {test_url}")
             print("🔬 Testing custom parameters")
@@ -746,7 +745,8 @@ class TestRagflowRAGStrategy:
         print("\n=== Complete integration test workflow ===")
 
         # Test PDF file URL
-        test_pdf_url = "https://oss-beijing-m8.openstorage.cn/SparkBotDev/knowledge_doc/cc124/2023机电一体化技术_人才培养方案.pdf"
+
+        test_pdf_url = " https://www.adobe.com/support/products/enterprise/knowledgecenter/media/c4611_sample_explain.pdf"
 
         # Initialize test state
         test_succeeded = True
