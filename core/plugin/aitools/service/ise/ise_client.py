@@ -180,10 +180,7 @@ class ISEResultParser:
             Dict: AI友好的结构化评测结果
         """
         try:
-            # 解析XML
             root = ET.fromstring(xml_string)
-
-            # 提取基本信息
             result = {
                 "evaluation_id": root.get("id", ""),
                 "overall_score": 0.0,
@@ -193,98 +190,108 @@ class ISEResultParser:
                 "raw_xml": xml_string,
             }
 
-            # 通用方案：查找 rec_paper 内部的评测节点
-            # rec_paper 内部的节点才包含真正的评分数据
-            rec_paper = root.find(".//rec_paper")
-            if rec_paper is None:
-                return {
-                    "error": "未找到rec_paper节点",
-                    "raw_xml": xml_string,
-                    "overall_score": 0,
-                    "status": "parse_error",
-                }
+            # 查找评测节点
+            task_node = ISEResultParser._find_evaluation_node(root, xml_string)
+            if isinstance(task_node, dict):  # Error case
+                return task_node
 
-            # 在rec_paper内部查找包含total_score的节点
-            task_node = None
-            for child in rec_paper:
-                if child.get("total_score"):
-                    task_node = child
-                    break
+            # 处理异常状态
+            ISEResultParser._process_exception_info(task_node, result)
+            ISEResultParser._process_rejection_status(task_node, result)
 
-            if task_node is None:
-                return {
-                    "error": "未找到包含评分的评测节点",
-                    "raw_xml": xml_string,
-                    "overall_score": 0,
-                    "status": "parse_error",
-                }
-
-            # 检查异常情况
-            except_info = task_node.get("except_info", "0")
-            is_rejected = task_node.get("is_rejected", "false")
-
-            # 处理except_info异常情况
-            if except_info != "0":
-                except_code = int(except_info)
-                if except_code == 28673:  # 0x7001
-                    result["status"] = "audio_error"
-                    result["warnings"].append("引擎判断该语音为无语音或音量小类型")
-                elif except_code == 28676:  # 0x7004
-                    result["status"] = "content_mismatch"
-                    result["warnings"].append("引擎判断该语音为乱说类型")
-                elif except_code == 28680:  # 0x7008
-                    result["status"] = "noise_error"
-                    result["warnings"].append("引擎判断该语音为信噪比低类型")
-                elif except_code == 28690:  # 0x7012
-                    result["status"] = "clipping_error"
-                    result["warnings"].append("引擎判断该语音为截幅类型")
-                elif except_code == 28689:  # 0x7011
-                    result["status"] = "no_audio"
-                    result["warnings"].append("引擎判断没有音频输入")
-                else:
-                    result["status"] = "unknown_error"
-                    result["warnings"].append(f"引擎返回未知异常代码: {except_code}")
-
-            # 处理is_rejected字段
-            if is_rejected == "true":
-                result["status"] = "rejected"
-                result["warnings"].append(
-                    "评测结果被拒：引擎检测到乱读，分值不能作为参考"
-                )
-
-            # 提取任务层级的所有评分指标
-            task_scores = {}
-            score_fields = [
-                "total_score",
-                "accuracy_score",
-                "emotion_score",
-                "fluency_score",
-                "integrity_score",
-                "phone_score",
-                "tone_score",
-            ]
-
-            for field in score_fields:
-                score_value = task_node.get(field)
-                if score_value is not None and score_value != "":
-                    try:
-                        task_scores[field] = float(score_value)
-                    except (ValueError, TypeError):
-                        pass
-
+            # 提取评分数据
+            task_scores = ISEResultParser._extract_score_fields(task_node)
             result["detailed_scores"] = task_scores
             result["overall_score"] = task_scores.get("total_score", 0)
 
             return result
 
         except Exception as e:
-            # 解析失败时返回原始XML和错误信息
             return {
                 "error": f"XML解析失败: {str(e)}",
                 "raw_xml": xml_string,
                 "overall_score": 0,
                 "status": "parse_error",
             }
+
+    @staticmethod
+    def _find_evaluation_node(root, xml_string):
+        """查找包含评分数据的评测节点"""
+        rec_paper = root.find(".//rec_paper")
+        if rec_paper is None:
+            return {
+                "error": "未找到rec_paper节点",
+                "raw_xml": xml_string,
+                "overall_score": 0,
+                "status": "parse_error",
+            }
+
+        for child in rec_paper:
+            if child.get("total_score"):
+                return child
+
+        return {
+            "error": "未找到包含评分的评测节点",
+            "raw_xml": xml_string,
+            "overall_score": 0,
+            "status": "parse_error",
+        }
+
+    @staticmethod
+    def _process_exception_info(task_node, result):
+        """处理except_info异常情况"""
+        except_info = task_node.get("except_info", "0")
+        if except_info == "0":
+            return
+
+        except_code = int(except_info)
+        exception_mappings = {
+            28673: ("audio_error", "引擎判断该语音为无语音或音量小类型"),
+            28676: ("content_mismatch", "引擎判断该语音为乱说类型"),
+            28680: ("noise_error", "引擎判断该语音为信噪比低类型"),
+            28690: ("clipping_error", "引擎判断该语音为截幅类型"),
+            28689: ("no_audio", "引擎判断没有音频输入"),
+        }
+
+        if except_code in exception_mappings:
+            status, message = exception_mappings[except_code]
+            result["status"] = status
+            result["warnings"].append(message)
+        else:
+            result["status"] = "unknown_error"
+            result["warnings"].append(f"引擎返回未知异常代码: {except_code}")
+
+    @staticmethod
+    def _process_rejection_status(task_node, result):
+        """处理is_rejected字段"""
+        is_rejected = task_node.get("is_rejected", "false")
+        if is_rejected == "true":
+            result["status"] = "rejected"
+            result["warnings"].append("评测结果被拒：引擎检测到乱读，分值不能作为参考")
+
+    @staticmethod
+    def _extract_score_fields(task_node):
+        """提取任务层级的所有评分指标"""
+        task_scores = {}
+        score_fields = [
+            "total_score",
+            "accuracy_score",
+            "emotion_score",
+            "fluency_score",
+            "integrity_score",
+            "phone_score",
+            "tone_score",
+        ]
+
+        for field in score_fields:
+            score_value = task_node.get(field)
+            if score_value is not None and score_value != "":
+                try:
+                    task_scores[field] = float(score_value)
+                except (ValueError, TypeError):
+                    pass
+
+        return task_scores
 
     # 移除了 _generate_summary 和 _generate_recommendations 方法，因为已不需要
 
@@ -484,6 +491,21 @@ class ISEClient:
         self.error_msg = None
         self.evaluation_complete = False
 
+        # 创建WebSocket连接
+        websocket.enableTrace(False)
+        ws = websocket.WebSocketApp(
+            auth_url,
+            on_message=self._create_message_handler(ise_param),
+            on_error=self._create_error_handler(),
+            on_close=self._create_close_handler(),
+            on_open=self._create_open_handler(ise_param),
+        )
+
+        ws.run_forever(sslopt={"cert_reqs": ssl.CERT_NONE})
+
+    def _create_message_handler(self, ise_param: ISEParam):
+        """创建WebSocket消息处理器"""
+
         def on_message(ws, message):
             try:
                 print(f"Received message: {message}")
@@ -499,100 +521,118 @@ class ISEClient:
 
                 # 解析评测结果
                 if "data" in data:
-                    data_info = data["data"]
-                    status = data_info.get("status", 0)
-
-                    if status == 2:  # 评测完成
-                        if "data" in data_info and data_info["data"]:
-                            # Base64解码结果
-                            result_data = base64.b64decode(data_info["data"])
-                            result_str = result_data.decode("utf-8")
-                            # 使用ISEResultParser解析XML结果为AI友好的JSON格式
-                            self.result = ISEResultParser.parse_xml_result(
-                                result_str,
-                                ise_param.business_args.get("group", "adult"),
-                            )
-                        else:
-                            self.result = {
-                                "error": "未接收到评测结果数据",
-                                "overall_score": 0,
-                                "status": "no_data",
-                            }
-                        self.evaluation_complete = True
-                        ws.close()
+                    self._handle_evaluation_response(data["data"], ise_param, ws)
 
             except Exception as e:
                 self.error_msg = f"解析响应消息失败: {str(e)}"
                 ws.close()
 
+        return on_message
+
+    def _handle_evaluation_response(self, data_info, ise_param: ISEParam, ws):
+        """处理评测响应数据"""
+        status = data_info.get("status", 0)
+
+        if status == 2:  # 评测完成
+            if "data" in data_info and data_info["data"]:
+                # Base64解码结果
+                result_data = base64.b64decode(data_info["data"])
+                result_str = result_data.decode("utf-8")
+                # 使用ISEResultParser解析XML结果为AI友好的JSON格式
+                self.result = ISEResultParser.parse_xml_result(
+                    result_str,
+                    ise_param.business_args.get("group", "adult"),
+                )
+            else:
+                self.result = {
+                    "error": "未接收到评测结果数据",
+                    "overall_score": 0,
+                    "status": "no_data",
+                }
+            self.evaluation_complete = True
+            ws.close()
+
+    def _create_error_handler(self):
+        """创建WebSocket错误处理器"""
+
         def on_error(_ws, error):
             self.error_msg = f"WebSocket连接错误: {str(error)}"
+
+        return on_error
+
+    def _create_close_handler(self):
+        """创建WebSocket关闭处理器"""
 
         def on_close(_ws, _close_status_code, _close_msg):
             pass
 
+        return on_close
+
+    def _create_open_handler(self, ise_param: ISEParam):
+        """创建WebSocket连接开启处理器"""
+
         def on_open(ws):
             def run():
                 try:
-                    # 发送首帧 - 包含业务参数和初始数据
-                    first_frame = {
-                        "common": ise_param.common_args,
-                        "business": ise_param.business_args,
-                        "data": {"status": 0, "data": ""},  # 首帧
-                    }
-                    ws.send(json.dumps(first_frame))
-                    print("发送首帧完成")
-
-                    # 分帧发送音频数据
-                    audio_data = ise_param.audio_data
-                    frame_size = 1280  # 每帧1280字节，与官方示例保持一致
-
-                    for i in range(0, len(audio_data), frame_size):
-                        chunk = audio_data[i : i + frame_size]
-                        is_last_frame = i + frame_size >= len(audio_data)
-
-                        if is_last_frame:
-                            # 最后一帧
-                            frame_data = {
-                                "business": {"cmd": "auw", "aus": 4},
-                                "data": {
-                                    "status": 2,  # 结束
-                                    "data": base64.b64encode(chunk).decode(),
-                                },
-                            }
-                            ws.send(json.dumps(frame_data))
-                            print("发送最后一帧")
-                            break
-                        else:
-                            # 中间帧
-                            frame_data = {
-                                "business": {"cmd": "auw", "aus": 1},
-                                "data": {
-                                    "status": 1,  # 继续
-                                    "data": base64.b64encode(chunk).decode(),
-                                    "data_type": 1,
-                                    "encoding": "raw",
-                                },
-                            }
-                            ws.send(json.dumps(frame_data))
-
+                    self._send_initial_frame(ws, ise_param)
+                    self._send_audio_frames(ws, ise_param)
                 except Exception as e:
                     self.error_msg = f"发送数据失败: {str(e)}"
                     ws.close()
 
             thread.start_new_thread(run, ())
 
-        # 创建WebSocket连接
-        websocket.enableTrace(False)
-        ws = websocket.WebSocketApp(
-            auth_url,
-            on_message=on_message,
-            on_error=on_error,
-            on_close=on_close,
-            on_open=on_open,
-        )
+        return on_open
 
-        ws.run_forever(sslopt={"cert_reqs": ssl.CERT_NONE})
+    def _send_initial_frame(self, ws, ise_param: ISEParam):
+        """发送首帧数据"""
+        first_frame = {
+            "common": ise_param.common_args,
+            "business": ise_param.business_args,
+            "data": {"status": 0, "data": ""},  # 首帧
+        }
+        ws.send(json.dumps(first_frame))
+        print("发送首帧完成")
+
+    def _send_audio_frames(self, ws, ise_param: ISEParam):
+        """分帧发送音频数据"""
+        audio_data = ise_param.audio_data
+        frame_size = 1280  # 每帧1280字节，与官方示例保持一致
+
+        for i in range(0, len(audio_data), frame_size):
+            chunk = audio_data[i : i + frame_size]
+            is_last_frame = i + frame_size >= len(audio_data)
+
+            if is_last_frame:
+                self._send_final_frame(ws, chunk)
+                break
+            else:
+                self._send_middle_frame(ws, chunk)
+
+    def _send_final_frame(self, ws, chunk: bytes):
+        """发送最后一帧数据"""
+        frame_data = {
+            "business": {"cmd": "auw", "aus": 4},
+            "data": {
+                "status": 2,  # 结束
+                "data": base64.b64encode(chunk).decode(),
+            },
+        }
+        ws.send(json.dumps(frame_data))
+        print("发送最后一帧")
+
+    def _send_middle_frame(self, ws, chunk: bytes):
+        """发送中间帧数据"""
+        frame_data = {
+            "business": {"cmd": "auw", "aus": 1},
+            "data": {
+                "status": 1,  # 继续
+                "data": base64.b64encode(chunk).decode(),
+                "data_type": 1,
+                "encoding": "raw",
+            },
+        }
+        ws.send(json.dumps(frame_data))
 
     def _create_auth_url(self) -> str:
         """创建鉴权URL - 按照官方方法实现"""

@@ -6,13 +6,13 @@ import base64
 import re
 
 from fastapi import HTTPException
-from plugin.aitools.service.ase_sdk.util.pdf_convert import DOCUMENT_PAGE_UNLIMITED
 from plugin.aitools.const.translation_constants import (
     CHINESE_LANGUAGE_CODE,
     VALID_LANGUAGE_CODES,
     is_valid_language_pair,
 )
-from pydantic import BaseModel, validator, field_validator, model_validator
+from plugin.aitools.service.ase_sdk.util.pdf_convert import DOCUMENT_PAGE_UNLIMITED
+from pydantic import BaseModel, field_validator, model_validator, validator
 
 
 class GenText2Img(BaseModel):
@@ -212,7 +212,7 @@ class TranslationInput(BaseModel):
             )
         return value
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_language_combination(self):
         """Validate that at least one language is Chinese (cn)"""
         if not is_valid_language_pair(self.source_language, self.target_language):

@@ -3,6 +3,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 
 from plugin.aitools.service.ase_sdk.__base.power import Power
+from plugin.aitools.service.ase_sdk.util.pdf_convert import pdf_convert_png
 from plugin.aitools.service.ocr_llm.client import OcrLLMClient
 from plugin.aitools.service.ocr_llm.entities.ocr_result import (
     OcrResultM,
@@ -16,7 +17,6 @@ from plugin.aitools.service.ocr_llm.entities.req_data import (
 from plugin.aitools.service.ocr_llm.entities.req_data_multithreading import (
     OcrLLMReqSourceDataMultithreading,
 )
-from plugin.aitools.service.ase_sdk.util.pdf_convert import pdf_convert_png
 
 
 class OcrLLMClientMultithreading(Power):
@@ -27,7 +27,8 @@ class OcrLLMClientMultithreading(Power):
     def __init__(
         self,
         url: str = os.getenv(
-            "OCR_LLM_WS_URL", "https://cbm01.cn-huabei-1.xf-yun.com/v1/private/se75ocrbm"
+            "OCR_LLM_WS_URL",
+            "https://cbm01.cn-huabei-1.xf-yun.com/v1/private/se75ocrbm",
         ),
         method: str = "GET",
     ):

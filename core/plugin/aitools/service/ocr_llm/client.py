@@ -8,18 +8,18 @@ import logging
 import os
 import queue
 import time
-from typing import List, Dict
+from typing import Dict, List
 
 from plugin.aitools.service.ase_sdk.__base.entities.req_data import ReqData
 from plugin.aitools.service.ase_sdk.__base.entities.result import Result
 from plugin.aitools.service.ase_sdk.__base.power import Power
+from plugin.aitools.service.ase_sdk.const.data_status import DataStatusEnum
+from plugin.aitools.service.ase_sdk.exception.CustomException import CustomException
+from plugin.aitools.service.ase_sdk.util.hmac_auth import HMACAuth
 from plugin.aitools.service.ocr_llm.entities.ocr_result import OcrResult
 from plugin.aitools.service.ocr_llm.entities.req_data import (
     OcrLLMReqSourceData,
 )
-from plugin.aitools.service.ase_sdk.const.data_status import DataStatusEnum
-from plugin.aitools.service.ase_sdk.exception.CustomException import CustomException
-from plugin.aitools.service.ase_sdk.util.hmac_auth import HMACAuth
 
 
 class OcrLLMClient(Power):
@@ -30,7 +30,8 @@ class OcrLLMClient(Power):
     def __init__(
         self,
         url: str = os.getenv(
-            "OCR_LLM_WS_URL", "https://cbm01.cn-huabei-1.xf-yun.com/v1/private/se75ocrbm"
+            "OCR_LLM_WS_URL",
+            "https://cbm01.cn-huabei-1.xf-yun.com/v1/private/se75ocrbm",
         ),
         method: str = "GET",
     ):
