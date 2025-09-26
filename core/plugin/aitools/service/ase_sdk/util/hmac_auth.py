@@ -23,12 +23,12 @@ class HMACAuth:
             f"host: {url_result.hostname}\ndate: {date}\n"
             f"{method} {url_result.path} HTTP/1.1"
         )
-        signature_sha = hmac.new(
+        signature_sha_bytes = hmac.new(
             api_secret.encode("utf-8"),
             signature_origin.encode("utf-8"),
             digestmod=hashlib.sha256,
         ).digest()
-        signature_sha = base64.b64encode(signature_sha).decode(encoding="utf-8")
+        signature_sha = base64.b64encode(signature_sha_bytes).decode(encoding="utf-8")
         authorization_origin = (
             f'api_key="{api_key}", algorithm="hmac-sha256", '
             f'headers="host date request-line", signature="{signature_sha}"'

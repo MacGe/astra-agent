@@ -17,7 +17,7 @@ from wsgiref.handlers import format_date_time
 import requests
 import websocket
 
-from const.err_code.code import CodeEnum  # 引入错误码枚举类
+from plugin.aitools.const.err_code.code import CodeEnum
 
 
 class ImageUnderstandingClient:

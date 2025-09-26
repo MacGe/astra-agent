@@ -47,6 +47,15 @@ class CodeEnum(Enum):
     OCR_FILE_ERROR = (45202, "处理文档失败")
     OCR_UNKNOWN_FILE_ERROR = (45203, "未知的文件类型")
 
+    # 翻译异常
+    TRANSLATION_EMPTY_ERROR = (45250, "翻译文本不能为空")
+    TRANSLATION_TOO_LONG_ERROR = (45251, "翻译文本超过5000字符限制")
+    TRANSLATION_LANG_ERROR = (45252, "不支持的语言组合")
+    TRANSLATION_API_ERROR = (45253, "翻译API调用失败")
+    TRANSLATION_RESPONSE_ERROR = (45254, "翻译API返回数据格式错误")
+    TRANSLATION_AUTH_ERROR = (45255, "翻译服务认证失败")
+    TRANSLATION_NETWORK_ERROR = (45256, "翻译服务网络连接失败")
+
     # tts,smarttts
     OSS_STORAGE_ERROR = (45160, "OSS存储失败")
     TEXT_RESULT_NULL_ERROR = (46000, "text字段不能为空")

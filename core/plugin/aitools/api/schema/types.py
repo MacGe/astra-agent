@@ -7,7 +7,12 @@ import re
 
 from fastapi import HTTPException
 from plugin.aitools.service.ase_sdk.util.pdf_convert import DOCUMENT_PAGE_UNLIMITED
-from pydantic import BaseModel, validator
+from plugin.aitools.const.translation_constants import (
+    CHINESE_LANGUAGE_CODE,
+    VALID_LANGUAGE_CODES,
+    is_valid_language_pair,
+)
+from pydantic import BaseModel, validator, field_validator, model_validator
 
 
 class GenText2Img(BaseModel):
@@ -153,7 +158,7 @@ class ISEInput(BaseModel):
     category: str = "read_sentence"  # 评测类型: read_syllable/read_word/read_sentence等
     group: str = "adult"  # 年龄组: pupil(小学)/youth(中学)/adult(成人)
 
-    @validator("group")
+    @field_validator("group")
     @classmethod
     def validate_group(cls, value):
         valid_groups = ["pupil", "youth", "adult"]
@@ -161,7 +166,7 @@ class ISEInput(BaseModel):
             raise ValueError(f"Invalid group: {value}. Valid options: {valid_groups}")
         return value
 
-    @validator("audio_data")
+    @field_validator("audio_data")
     @classmethod
     def validate_audio_data(cls, value):
         if not value:
@@ -171,3 +176,49 @@ class ISEInput(BaseModel):
         except Exception as exc:
             raise ValueError("audio_data must be valid base64 encoded string") from exc
         return value
+
+
+class TranslationInput(BaseModel):
+    text: str  # 待翻译文本
+    target_language: str  # 目标语言代码
+    source_language: str = CHINESE_LANGUAGE_CODE  # 源语言代码，默认中文
+
+    @field_validator("text")
+    @classmethod
+    def validate_text(cls, value):
+        if not value or not value.strip():
+            raise ValueError("Translation text cannot be empty")
+        if len(value) > 5000:
+            raise ValueError("Translation text cannot exceed 5000 characters")
+        return value
+
+    @field_validator("target_language")
+    @classmethod
+    def validate_target_language(cls, value):
+        if value not in VALID_LANGUAGE_CODES:
+            raise ValueError(
+                f"Invalid target language: {value}.\n"
+                f"Valid options: {list(VALID_LANGUAGE_CODES)}"
+            )
+        return value
+
+    @field_validator("source_language")
+    @classmethod
+    def validate_source_language(cls, value):
+        if value not in VALID_LANGUAGE_CODES:
+            raise ValueError(
+                f"Invalid source language: {value}.\n"
+                f"Valid options: {list(VALID_LANGUAGE_CODES)}"
+            )
+        return value
+
+    @model_validator(mode='after')
+    def validate_language_combination(self):
+        """Validate that at least one language is Chinese (cn)"""
+        if not is_valid_language_pair(self.source_language, self.target_language):
+            raise ValueError(
+                "API requires Chinese (cn) as either source or target language. "
+                f"Current combination: {self.source_language} → {self.target_language} "
+                "is not supported."
+            )
+        return self

@@ -86,7 +86,7 @@ class AudioConverter:
 
     @staticmethod
     def convert_to_wav(
-        audio_data: bytes, source_format: str = None
+        audio_data: bytes, source_format: str | None = None
     ) -> Tuple[bytes, Dict[str, Any]]:
         """将音频转换为WAV格式（16kHz, 16bit, 单声道），返回转换后的数据和原始属性"""
 
@@ -402,7 +402,7 @@ class ISEClient:
         try:
             # 音频格式处理
             processed_audio_data = audio_data
-            original_audio_properties = {}
+            original_audio_properties: Dict[str, Any] = {}
 
             if auto_convert:
                 # 检测和验证音频格式
@@ -480,7 +480,7 @@ class ISEClient:
 
     def _sync_evaluate(self, ise_param: ISEParam, auth_url: str):
         """同步评测方法 - 采用官方分帧传输模式"""
-        self.result = None
+        self.result: Dict[str, Any] | None = None
         self.error_msg = None
         self.evaluation_complete = False
 

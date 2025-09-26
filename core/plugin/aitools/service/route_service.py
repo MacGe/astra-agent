@@ -18,6 +18,9 @@ from plugin.aitools.const.err_code.code import CodeEnum
 from plugin.aitools.service.image_understanding.image_understanding_client import (
     ImageUnderstandingClient,
 )
+from plugin.aitools.service.translation.translation_client import (
+    TranslationClient,
+)
 
 from common.otlp.log_trace.node_trace_log import NodeTraceLog, Status
 from common.otlp.metrics.meter import Meter
@@ -219,4 +222,99 @@ async def ise_evaluate_main(
 
         return ErrorResponse(
             code_enum=CodeEnum.INTERNAL_ERROR, message=f"ISE评测异常: {str(e)}", sid=sid
+        )
+
+
+# Text Translation Service
+def translation_main(text: str, target_language: str, source_language: str = "cn", request=None):
+    """
+    Text translation service main function
+    
+    Args:
+        text: Text to be translated
+        target_language: Target language code 
+        source_language: Source language code, default Chinese
+        request: HTTP request object
+        
+    Returns:
+        SuccessDataResponse or ErrorResponse
+    """
+    app_id = os.getenv("TRANSLATION_APP_ID")
+    uid = str(uuid.uuid1())
+    caller = ""
+    tool_id = ""
+    tool_type = os.getenv(OFFICIAL_TOOL_KEY)
+    sid = new_sid()
+    
+    span = Span(app_id=app_id, uid=uid)
+    usr_input = {
+        "text": text,
+        "target_language": target_language,
+        "source_language": source_language,
+    }
+    
+    try:
+        with span.start(
+            func_name="translation", add_source_function_name=False
+        ) as span_context:
+            m = Meter(app_id=span_context.app_id, func="translation")
+            span_context.add_info_events(
+                {"usr_input": json.dumps(usr_input, ensure_ascii=False)}
+            )
+            span_context.set_attributes(attributes=usr_input)
+            
+            # Create translation client
+            translation_client = TranslationClient(
+                app_id=os.getenv("TRANSLATION_APP_ID"),
+                api_key=os.getenv("TRANSLATION_API_KEY"),
+                api_secret=os.getenv("TRANSLATION_API_SECRET"),
+            )
+            
+            # Execute translation
+            success, message, result = translation_client.translate(
+                text=text,
+                target_language=target_language,
+                source_language=source_language
+            )
+            
+            span_context.add_info_events(
+                {"result": json.dumps(result, ensure_ascii=False)}
+            )
+            
+            if success:
+                m.in_success_count()
+                return SuccessDataResponse(
+                    data=result,
+                    message="Translation successful",
+                    sid=sid,
+                )
+            else:
+                # Map error messages to appropriate error codes
+                if "翻译文本不能为空" in message:
+                    error_code = CodeEnum.TRANSLATION_EMPTY_ERROR
+                elif "翻译文本超过5000字符限制" in message:
+                    error_code = CodeEnum.TRANSLATION_TOO_LONG_ERROR
+                elif "不支持的语言组合" in message:
+                    error_code = CodeEnum.TRANSLATION_LANG_ERROR
+                elif "API请求失败" in message:
+                    error_code = CodeEnum.TRANSLATION_API_ERROR
+                elif "API返回数据格式错误" in message:
+                    error_code = CodeEnum.TRANSLATION_RESPONSE_ERROR
+                else:
+                    error_code = CodeEnum.TRANSLATION_API_ERROR
+                    
+                m.in_error_count(error_code.code)
+                return ErrorResponse(
+                    code_enum=error_code,
+                    message=f"Translation failed: {message}",
+                    sid=sid,
+                )
+                
+    except Exception as e:
+        logging.error("Translation service error: %s", str(e))
+        m.in_error_count(CodeEnum.INTERNAL_ERROR.code)
+        return ErrorResponse(
+            code_enum=CodeEnum.INTERNAL_ERROR, 
+            message=f"Translation service error: {str(e)}", 
+            sid=sid
         )

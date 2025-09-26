@@ -21,7 +21,7 @@ class Power(ABC):
     """
 
     def __init__(self, url: str, method: str = "GET", stream=False):
-        self.queue = queue.Queue()
+        self.queue: queue.Queue = queue.Queue()
         self.url = url
         self.method = method
         self.stream = stream

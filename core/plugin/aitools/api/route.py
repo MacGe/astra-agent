@@ -24,6 +24,7 @@ from plugin.aitools.api.schema.types import (
     ISEInput,
     SmartTTSInput,
     SuccessDataResponse,
+    TranslationInput,
 )
 from plugin.aitools.common.logger import log
 from plugin.aitools.const.const import IMAGE_GENERATE_MAX_PROMPT_LEN
@@ -311,5 +312,27 @@ async def ise_evaluate(params: ISEInput, request: Request):
         language=params.language,
         category=params.category,
         group=params.group,
+        _request=request,
+    )
+
+
+# Text Translation API
+@app.post("/translation")
+async def translation_api(params: TranslationInput, request: Request):
+    """
+    Text translation service endpoint
+    
+    Supports bidirectional translation between Chinese and other languages:
+    - Chinese ↔ English (cn ↔ en)
+    - Chinese ↔ Japanese (cn ↔ ja) 
+    - Chinese ↔ Korean (cn ↔ ko)
+    - Chinese ↔ Russian (cn ↔ ru)
+    """
+    from plugin.aitools.service.route_service import translation_main
+
+    return translation_main(
+        text=params.text,
+        target_language=params.target_language,
+        source_language=params.source_language,
         request=request,
     )

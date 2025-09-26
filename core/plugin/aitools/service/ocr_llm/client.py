@@ -8,7 +8,7 @@ import logging
 import os
 import queue
 import time
-from typing import List
+from typing import List, Dict
 
 from plugin.aitools.service.ase_sdk.__base.entities.req_data import ReqData
 from plugin.aitools.service.ase_sdk.__base.entities.result import Result
@@ -163,7 +163,7 @@ class OcrRespParse:
         return "\n".join(result)
 
     @staticmethod
-    def _deal_table_data(cells: []):
+    def _deal_table_data(cells: List[Dict[str, int]]):
         max_row = max(item["row"] for item in cells)
         table = "<table border='1'>\n"
 
@@ -280,7 +280,7 @@ class OcrRespParse:
         return child_ocr_texts
 
     @staticmethod
-    def _deal_text_attributes(attributes: [{}]) -> str:
+    def _deal_text_attributes(attributes: List[Dict[str, str]]) -> str:
         ff = "{text}"
         for attribute in attributes:
             name = attribute.get("name", "")
